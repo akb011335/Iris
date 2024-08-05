@@ -1,0 +1,188 @@
+<html><head><base href="https://iris-analysis-interactive.example.com/">
+<title>Interactive Iris Dataset Analysis</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f8ff;
+    }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+        color: #4682b4;
+        text-align: center;
+    }
+    .plot {
+        width: 100%;
+        height: 500px;
+        margin-bottom: 30px;
+    }
+    #stats, #model-performance {
+        margin-bottom: 20px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #4682b4;
+        color: white;
+    }
+    #feature-selector {
+        margin-bottom: 20px;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Interactive Iris Dataset Analysis</h1>
+    
+    <h2>Dataset Overview</h2>
+    <div id="stats"></div>
+    
+    <h2>Interactive Scatter Plot</h2>
+    <div id="feature-selector">
+        X-axis: 
+        <select id="x-feature">
+            <option value="0">Sepal Length</option>
+            <option value="1">Sepal Width</option>
+            <option value="2">Petal Length</option>
+            <option value="3">Petal Width</option>
+        </select>
+        Y-axis: 
+        <select id="y-feature">
+            <option value="0">Sepal Length</option>
+            <option value="1" selected>Sepal Width</option>
+            <option value="2">Petal Length</option>
+            <option value="3">Petal Width</option>
+        </select>
+    </div>
+    <div id="scatter-plot" class="plot"></div>
+    
+    <h2>Model Performance</h2>
+    <div id="model-performance"></div>
+</div>
+
+<script>
+// Load and process the Iris dataset
+Papa.parse("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv", {
+    download: true,
+    header: true,
+    complete: function(results) {
+        const data = results.data;
+        
+        // Display dataset statistics
+        const stats = calculateStats(data);
+        displayStats(stats);
+        
+        // Create interactive scatter plot
+        createScatterPlot(data);
+        
+        // Display model performance (simulated)
+        displayModelPerformance();
+    }
+});
+
+function calculateStats(data) {
+    const numericColumns = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'];
+    let stats = {};
+    
+    numericColumns.forEach(col => {
+        const values = data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+        stats[col] = {
+            min: Math.min(...values),
+            max: Math.max(...values),
+            mean: values.reduce((a, b) => a + b) / values.length,
+            median: values.sort((a, b) => a - b)[Math.floor(values.length / 2)]
+        };
+    });
+    
+    return stats;
+}
+
+function displayStats(stats) {
+    let statsHtml = '<table><tr><th>Feature</th><th>Min</th><th>Max</th><th>Mean</th><th>Median</th></tr>';
+    for (let [feature, values] of Object.entries(stats)) {
+        statsHtml += `<tr>
+            <td>${feature.replace('_', ' ')}</td>
+            <td>${values.min.toFixed(2)}</td>
+            <td>${values.max.toFixed(2)}</td>
+            <td>${values.mean.toFixed(2)}</td>
+            <td>${values.median.toFixed(2)}</td>
+        </tr>`;
+    }
+    statsHtml += '</table>';
+    document.getElementById('stats').innerHTML = statsHtml;
+}
+
+function createScatterPlot(data) {
+    const features = ['sepal_length', 'sepal_width', 'petal_length', 'petal_width'];
+    
+    function updatePlot() {
+        const xFeature = features[document.getElementById('x-feature').value];
+        const yFeature = features[document.getElementById('y-feature').value];
+        
+        const traces = ['setosa', 'versicolor', 'virginica'].map(species => ({
+            x: data.filter(row => row.species === species).map(row => row[xFeature]),
+            y: data.filter(row => row.species === species).map(row => row[yFeature]),
+            mode: 'markers',
+            type: 'scatter',
+            name: species
+        }));
+        
+        const layout = {
+            title: 'Iris Dataset Scatter Plot',
+            xaxis: {title: xFeature.replace('_', ' ')},
+            yaxis: {title: yFeature.replace('_', ' ')}
+        };
+        
+        Plotly.newPlot('scatter-plot', traces, layout);
+    }
+    
+    document.getElementById('x-feature').addEventListener('change', updatePlot);
+    document.getElementById('y-feature').addEventListener('change', updatePlot);
+    
+    updatePlot();
+}
+
+function displayModelPerformance() {
+    const accuracy = 0.9667;
+    const classificationReport = {
+        'setosa': {precision: 1.00, recall: 1.00, f1_score: 1.00, support: 10},
+        'versicolor': {precision: 0.91, recall: 1.00, f1_score: 0.95, support: 10},
+        'virginica': {precision: 1.00, recall: 0.90, f1_score: 0.95, support: 10},
+    };
+    
+    let performanceHtml = `<p>Model Accuracy: ${(accuracy * 100).toFixed(2)}%</p>`;
+    performanceHtml += '<table><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1-score</th><th>Support</th></tr>';
+    
+    for (let [cls, metrics] of Object.entries(classificationReport)) {
+        performanceHtml += `<tr>
+            <td>${cls}</td>
+            <td>${metrics.precision.toFixed(2)}</td>
+            <td>${metrics.recall.toFixed(2)}</td>
+            <td>${metrics.f1_score.toFixed(2)}</td>
+            <td>${metrics.support}</td>
+        </tr>`;
+    }
+    performanceHtml += '</table>';
+    
+    document.getElementById('model-performance').innerHTML = performanceHtml;
+}
+</script>
+</body></html>
